@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { usersTable } from "../db/schema";
 import { hash } from "bcryptjs";
 import { Messages } from "../utils/messages";
+import { calculateGoals } from "../libs/calculateGoals";
 
 const schema = z.object({
   goal: z.enum(["perder", "manter", "ganhar"]),
@@ -44,16 +45,22 @@ export class SignUpController {
 
     const hashedPassword = await hash(account.password, 12);
 
+    const goals = calculateGoals({
+      height: data.height,
+      weight: data.weight,
+      gender: data.gender,
+      birthDate: new Date(data.birthDate),
+      activityLevel: data.activityLevel,
+      goal: data.goal,
+    });
+
     const [user] = await db
       .insert(usersTable)
       .values({
         ...account,
         ...rest,
         password: hashedPassword,
-        calories: 0,
-        proteins: 0,
-        carbohydrates: 0,
-        fats: 0,
+        ...goals,
       })
       .returning({ id: usersTable.id });
 

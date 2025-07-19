@@ -2,12 +2,13 @@ import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { HttpRequest, HttpResponse } from "../types/Https";
 import { badRequest, ok, unauthorized } from "../utils/http";
-
+import { sign } from "jsonwebtoken";
 import { compare } from "bcryptjs";
 
 import { z } from "zod";
 import { usersTable } from "../db/schema";
 import { Messages } from "../utils/messages";
+import { signAccessTokenFor } from "../libs/jwt";
 
 const schema = z.object({
   email: z.email(),
@@ -22,7 +23,7 @@ export class SignInController {
       return badRequest({ errors: error.issues });
     }
 
-    const userExistente = await db.query.usersTable.findFirst({
+    const user = await db.query.usersTable.findFirst({
       columns: {
         id: true,
         email: true,
@@ -31,16 +32,18 @@ export class SignInController {
       where: eq(usersTable.email, data.email),
     });
 
-    if (!userExistente) {
+    if (!user) {
       return unauthorized({ errors: Messages.CREDENCIAL_INVALIDAS });
     }
 
-    const passwordValido = await compare(data.password, userExistente.password);
+    const passwordValido = await compare(data.password, user.password);
 
     if (!passwordValido) {
       return unauthorized({ errors: Messages.CREDENCIAL_INVALIDAS });
     }
 
-    return ok({ accessToken: "token" });
+    const accessToken = signAccessTokenFor(user.id);
+
+    return ok({ accessToken });
   }
 }
