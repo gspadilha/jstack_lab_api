@@ -1,28 +1,44 @@
+import { eq } from "drizzle-orm";
+import { db } from "../db";
 import { HttpRequest, HttpResponse } from "../types/Https";
-import { badRequest, ok } from "../utils/http";
+import { badRequest, ok, unauthorized } from "../utils/http";
+
+import { compare } from "bcryptjs";
 
 import { z } from "zod";
+import { usersTable } from "../db/schema";
+import { Messages } from "../utils/messages";
 
 const schema = z.object({
-  goal: z.enum(["perder", "manter", "ganhar"]),
-  gender: z.enum(["masculino", "feminino"]),
-  birthDate: z.iso.date(),
-  height: z.number().max(250),
-  weight: z.number().max(500),
-  activityLevel: z.number().min(1).max(5),
-  account: z.object({
-    name: z.string().min(5),
-    email: z.email(),
-    password: z.string().min(8),
-  }),
+  email: z.email(),
+  password: z.string().min(8),
 });
 
 export class SignInController {
   static async handle({ body }: HttpRequest): Promise<HttpResponse> {
-    const { success, error } = schema.safeParse(body);
+    const { success, error, data } = schema.safeParse(body);
 
     if (!success) {
       return badRequest({ errors: error.issues });
+    }
+
+    const userExistente = await db.query.usersTable.findFirst({
+      columns: {
+        id: true,
+        email: true,
+        password: true,
+      },
+      where: eq(usersTable.email, data.email),
+    });
+
+    if (!userExistente) {
+      return unauthorized({ errors: Messages.CREDENCIAL_INVALIDAS });
+    }
+
+    const passwordValido = await compare(data.password, userExistente.password);
+
+    if (!passwordValido) {
+      return unauthorized({ errors: Messages.CREDENCIAL_INVALIDAS });
     }
 
     return ok({ accessToken: "token" });

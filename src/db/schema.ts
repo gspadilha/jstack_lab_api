@@ -6,7 +6,7 @@ export const usersTable = pgTable("users", {
   email: varchar({ length: 255 }).notNull().unique(),
   password: varchar({ length: 255 }).notNull(),
   goal: varchar({ length: 6 }).notNull(),
-  gender: varchar({ length: 1 }).notNull(),
+  gender: varchar({ length: 21 }).notNull(),
   birthDate: date("birth_date").notNull(),
   height: integer().notNull(),
   weight: integer().notNull(),

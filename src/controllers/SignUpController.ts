@@ -1,6 +1,11 @@
 import z from "zod";
 import { HttpRequest, HttpResponse } from "../types/Https";
-import { badRequest, created } from "../utils/http";
+import { badRequest, created, unprocessableEntity } from "../utils/http";
+import { db } from "../db";
+import { eq } from "drizzle-orm";
+import { usersTable } from "../db/schema";
+import { hash } from "bcryptjs";
+import { Messages } from "../utils/messages";
 
 const schema = z.object({
   goal: z.enum(["perder", "manter", "ganhar"]),
@@ -18,12 +23,40 @@ const schema = z.object({
 
 export class SignUpController {
   static async handle({ body }: HttpRequest): Promise<HttpResponse> {
-    const { success, error } = schema.safeParse(body);
+    const { success, error, data } = schema.safeParse(body);
 
     if (!success) {
       return badRequest({ errors: error.issues });
     }
 
-    return created({ accessToken: "sigUp: token" });
+    const userExistente = await db.query.usersTable.findFirst({
+      columns: {
+        email: true,
+      },
+      where: eq(usersTable.email, data.account.email),
+    });
+
+    if (userExistente) {
+      return unprocessableEntity({ errors: Messages.EMAIL_JA_CADASTRADO });
+    }
+
+    const { account, ...rest } = data;
+
+    const hashedPassword = await hash(account.password, 12);
+
+    const [user] = await db
+      .insert(usersTable)
+      .values({
+        ...account,
+        ...rest,
+        password: hashedPassword,
+        calories: 0,
+        proteins: 0,
+        carbohydrates: 0,
+        fats: 0,
+      })
+      .returning({ id: usersTable.id });
+
+    return created({ userId: user.id });
   }
 }

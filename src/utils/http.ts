@@ -20,3 +20,17 @@ export function badRequest(errors: Record<string, any>): HttpResponse {
     body: errors,
   };
 }
+
+export function unauthorized(errors: Record<string, any>): HttpResponse {
+  return {
+    statusCode: 401,
+    body: errors,
+  };
+}
+
+export function unprocessableEntity(errors: Record<string, any>): HttpResponse {
+  return {
+    statusCode: 422,
+    body: errors,
+  };
+}
